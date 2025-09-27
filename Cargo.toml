@@ -1,0 +1,11 @@
+[package]
+name = "parquet_footer_parsing"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+arrow = "56.0.0"
+parquet = "56.0.0"
+parquet_new = { package = "parquet",  git = "https://github.com/apache/arrow-rs.git", branch = "gh5854_thrift_remodel"}
+tokio = { version = "1", features = ["full"] }
+comfy-table = "7"
