@@ -5,7 +5,17 @@ edition = "2024"
 
 [dependencies]
 arrow = "56.0.0"
-parquet = "56.0.0"
-parquet_new = { package = "parquet",  git = "https://github.com/apache/arrow-rs.git", branch = "gh5854_thrift_remodel"}
+parquet_56 = {  package = "parquet",  version = "56.0.0" }
+# f6be170bc5432ffcb6ff491c22e6228cf4035cdd is part of the gh-5854_thrift_remodel branch, from this PR
+# https://github.com/apache/arrow-rs/pull/8476
+parquet_57 = { package = "parquet",  git = "https://github.com/apache/arrow-rs.git", rev = "f6be170bc5432ffcb6ff491c22e6228cf4035cdd"}
+# hacked version of parquet 57 that does not read statistics values
+parquet_57_no_stats = { package = "parquet",  path = "../arrow-rs/parquet"}
+
 tokio = { version = "1", features = ["full"] }
 comfy-table = "7"
+rand = "0.9"
+futures = "0.3"
+tempfile= "3"
+bytes = "1"
+
