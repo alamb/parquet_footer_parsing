@@ -10,12 +10,12 @@ parquet_56 = {  package = "parquet",  version = "56.0.0" }
 # https://github.com/apache/arrow-rs/pull/8476
 parquet_57 = { package = "parquet",  git = "https://github.com/apache/arrow-rs.git", rev = "f6be170bc5432ffcb6ff491c22e6228cf4035cdd"}
 # hacked version of parquet 57 that does not read statistics values
-parquet_57_no_stats = { package = "parquet",  path = "../arrow-rs/parquet"}
+# https://github.com/alamb/arrow-rs/pull/54
+parquet_57_no_stats = { package = "parquet",  git = "https://github.com/apache/arrow-rs.git", rev = "d24ac4fba7877b49ec54360e7baeb8669520bf04"}
 
 tokio = { version = "1", features = ["full"] }
 comfy-table = "7"
 rand = "0.9"
-futures = "0.3"
 tempfile= "3"
 bytes = "1"
 
