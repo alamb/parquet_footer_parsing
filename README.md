@@ -4,7 +4,7 @@
 
 ## Summary
 
-This benchmarks demonstrates nearly an order of magnitude improvement (7x)
+This benchmarks demonstrates nearly an order of magnitude improvement (8x)
 parsing Parquet metadata with **no changes to the Parquet format**, by simply
 writing a more efficient thrift decoder.
 
