@@ -147,16 +147,15 @@ skips both [statistics on column chunks] as well as the [PageIndex].
 
 # Results
 
-As shown in Figure 1 and 2, across the board, we see a 7x speedup (86% reduction) for
+As shown in Figure 1 and 2, across the board, we see a 8x speedup (86% reduction) for
 decoding metadata when using the new thrift decoder in arrow-rs and skipping the
 parsing of statistics and index structures entirely. Without skipping the
-parsing of statistics and index structures, we see about a 1.85x speedup overall 
+parsing of statistics and index structures, we see about a 3.3x speedup overall 
 
 
 For example, with the
 `String 100000 cols 20 row groups ` dataset, we go from a total time of 3.63s
-`(1.31s + 2.32s = 3.63s)` to 0.52s `(0.52s + 0s = 0.52s)`
-
+`(1.19s + 2.13s = 3.32s)` to 0.418s `(0.418s + 0s = 0.418s)`
 
 
 This is roughly in line with the 80% performance reduction results
@@ -170,6 +169,9 @@ ParquetOpen #16200] for more details.
 Results (see also [Spreadsheet] for source and diagrams)
 
 [Spreadsheet]: https://docs.google.com/spreadsheets/d/1Ypsox5EywNmv9ORwrlmJlWcPVvWlOW_QCnIt_U68vbo/edit?gid=1818026620#gid=1818026620
+
+## Results on Mac OS
+System configuration: Apple M3 Max, 16-inch, Nov 2023 64GB RAM
 
 ```text
 +-----------------------------------+---------------------+---------------------------+---------------------+---------------------------+--------------------------------+--------------------------------+
@@ -207,7 +209,6 @@ Description,Parse Time Arrow 56 Metadata (ms),Parse Time Arrow 56 PageIndex (Col
  String 10000 cols 20 row groups,120,207,53,48,42,0
  String 100000 cols 20 row groups,1190,2136,536,547,418,0
 ```
-
 
 
 
