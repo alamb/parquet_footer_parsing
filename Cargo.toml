@@ -18,3 +18,5 @@ rand = "0.9"
 tempfile= "3"
 bytes = "1"
 
+compact-thrift-parquet = "0.3.1"
+compact-thrift-runtime = "0.2.0"

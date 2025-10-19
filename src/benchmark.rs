@@ -142,7 +142,7 @@ impl MetadataParseBenchmark {
             };
             let index_parsing_duration = start.elapsed();
             (metadata_parsing_duration, index_parsing_duration)
-        } ;
+        };
 
         // warm up with 10 runs
         for _ in 0..10 {
@@ -190,7 +190,7 @@ impl MetadataParseBenchmark {
             };
             let index_parsing_duration = start.elapsed();
             (metadata_parsing_duration, index_parsing_duration)
-        } ;
+        };
 
         // warm up with 10 runs
         for _ in 0..10 {
@@ -214,6 +214,7 @@ impl MetadataParseBenchmark {
 
 
     /// Hacked version of Arrow 57 that skips all statistics
+    #[expect(unused)]
     fn run_arrow_57_no_stats(&self) -> Timing {
         use parquet_57_no_stats::file::metadata::ParquetMetaDataPushDecoder;
         use parquet_57_no_stats::DecodeResult;
@@ -271,15 +272,53 @@ impl MetadataParseBenchmark {
         }
     }
 
+    fn run_compact_thrift(&self) -> Timing {
+        use compact_thrift_parquet::format::FileMetaData;
+        use compact_thrift_runtime::CompactThriftInputSlice;
+        use compact_thrift_runtime::CompactThriftProtocol;
+        println!("Compact Thrift...");
+
+        // parse the metadata once, returning the time taken
+        // index parsing is not yet implemented, so the time for that is returned as 0
+        let run_once = || {
+            let start = std::time::Instant::now();
+            let mut input = CompactThriftInputSlice::new(self.metadata_bytes.as_ref());
+            let _fmd = FileMetaData::read_thrift(&mut input).unwrap();
+            let metadata_parsing_duration = start.elapsed();
+
+            (metadata_parsing_duration, Duration::from_secs(0))
+        };
+
+        // warm up with 10 runs
+        for _ in 0..10 {
+            run_once();
+        }
+
+        // now run the actual benchmark
+        let mut metadata_parsing_duration = Duration::from_secs(0);
+        let mut index_parsing_duration = Duration::from_secs(0);
+        for _ in 0..self.num_runs {
+            let (md_duration, idx_duration) = run_once();
+            metadata_parsing_duration += md_duration;
+            index_parsing_duration += idx_duration;
+        }
+        Timing {
+            num_runs: self.num_runs,
+            metadata_parsing_duration,
+            index_parsing_duration,
+        }
+    }
 
     pub fn run(&self) -> MetadataParseResult {
-        print!("Running metadata parse benchmark on {self:#?} ... ");
+        println!("Running metadata parse benchmark on {self:#?} ... ");
+
+        let compact_thrift_timing = self.run_compact_thrift();
 
         MetadataParseResult {
             description: self.description.clone(),
             arrow_56_timing: self.run_arrow_56(),
             arrow_57_timing: self.run_arrow_57(),
-            arrow_57_timing_no_stats: self.run_arrow_57_no_stats(),
+            compact_thrift_timing,
         }
     }
 }
@@ -327,9 +366,8 @@ pub struct MetadataParseResult {
     arrow_56_timing: Timing,
     /// Timing for arrow-rs 57 (using custom thrift parser)
     arrow_57_timing: Timing,
-    /// Timing for arrow-rs 57 (using custom thrift parser), skip all statistics
-    arrow_57_timing_no_stats: Timing,
-
+    /// Timing for compact-thrift-parquet
+    compact_thrift_timing: Timing,
 }
 
 impl MetadataParseResult {
@@ -340,8 +378,8 @@ impl MetadataParseResult {
             "Parse Time Arrow 56\n\nPageIndex (Column/Offset)",
             "Parse Time Arrow 57\n\nMetadata",
             "Parse Time Arrow 57\n\nPageIndex (Column/Offset)",
-            "Parse Time Arrow 57 (no stats)\n\nMetadata",
-            "Parse Time Arrow 57 (no stats)\n\nPageIndex (Column/Offset)",
+            "Parse Time Compact Thrift\n\nMetadata",
+            "Parse Time Compact Thrift\n\nPageIndex (Column/Offset)",
         ]);
     }
 
@@ -352,8 +390,8 @@ impl MetadataParseResult {
             "Parse Time Arrow 56 PageIndex (Column/Offset) (ms)",
             "Parse Time Arrow 57 Metadata (ms)",
             "Parse Time Arrow 57 PageIndex (Column/Offset) (ms)",
-            "Parse Time Arrow 57 (no stats) Metadata (ms)",
-            "Parse Time Arrow 57 (no stats) PageIndex (Column/Offset) (ms)",
+            "Parse Time Compact Thrift Metadata (ms)",
+            "Parse Time Compact Thrift PageIndex (Column/Offset) (ms)",
         ]
     }
 
@@ -364,8 +402,8 @@ impl MetadataParseResult {
             self.arrow_56_timing.avg_index_parsing_duration().as_millis().to_string(),
             self.arrow_57_timing.avg_metadata_parsing_duration().as_millis().to_string(),
             self.arrow_57_timing.avg_index_parsing_duration().as_millis().to_string(),
-            self.arrow_57_timing_no_stats.avg_metadata_parsing_duration().as_millis().to_string(),
-            self.arrow_57_timing_no_stats.avg_index_parsing_duration().as_millis().to_string(),
+            self.compact_thrift_timing.avg_metadata_parsing_duration().as_millis().to_string(),
+            self.compact_thrift_timing.avg_index_parsing_duration().as_millis().to_string(),
         ]
     }
 }
@@ -378,8 +416,8 @@ impl MetadataParseResult {
             format!("{:?}", self.arrow_56_timing.avg_index_parsing_duration()),
             format!("{:?}", self.arrow_57_timing.avg_metadata_parsing_duration()),
             format!("{:?}", self.arrow_57_timing.avg_index_parsing_duration()),
-            format!("{:?}", self.arrow_57_timing_no_stats.avg_metadata_parsing_duration()),
-            format!("{:?}", self.arrow_57_timing_no_stats.avg_index_parsing_duration()),
+            format!("{:?}", self.compact_thrift_timing.avg_metadata_parsing_duration()),
+            format!("{:?}", self.compact_thrift_timing.avg_index_parsing_duration()),
         ]);
     }
 }
@@ -392,8 +430,8 @@ impl Display for MetadataParseResult {
         writeln!(f, "{}", self.arrow_56_timing)?;
         writeln!(f, "  Arrow 57 Timing:")?;
         writeln!(f, "{}", self.arrow_57_timing)?;
-        writeln!(f, "  Arrow 57 Timing (no stats):")?;
-        writeln!(f, "{}", self.arrow_57_timing_no_stats)?;
+        writeln!(f, "  Compact Thrift Timing:")?;
+        writeln!(f, "{}", self.compact_thrift_timing)?;
         Ok(())
     }
 }
