@@ -574,6 +574,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "compact-thrift-parquet"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae1da3ed67f04aad8ae06eafb13ec02b4d6dc5131a52a0c22b66ad7a31e1ddfe"
+dependencies = [
+ "compact-thrift-runtime",
+]
+
+[[package]]
+name = "compact-thrift-runtime"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d56e184a6f620ff0891b8eb5bf0288e1b2ba473af0e5bbe8eab82384a61f381a"
+
+[[package]]
 name = "const-random"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1207,6 +1222,8 @@ dependencies = [
  "arrow",
  "bytes",
  "comfy-table",
+ "compact-thrift-parquet",
+ "compact-thrift-runtime",
  "parquet 56.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parquet 56.2.0 (git+https://github.com/apache/arrow-rs.git?rev=751b0822a7f0b2647c1c662131131b35f268bfef)",
  "parquet 56.2.0 (git+https://github.com/apache/arrow-rs.git?rev=dc023f57ca4d83a317674a17cc7f36f5cf685d9a)",
