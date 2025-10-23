@@ -348,24 +348,24 @@ impl MetadataParseResult {
     pub fn csv_headers() -> Vec<&'static str> {
         vec![
             "Description",
-            "Parse Time Arrow 56 Metadata (ms)",
-            "Parse Time Arrow 56 PageIndex (Column/Offset) (ms)",
-            "Parse Time Arrow 57 Metadata (ms)",
-            "Parse Time Arrow 57 PageIndex (Column/Offset) (ms)",
-            "Parse Time Arrow 57 (no stats) Metadata (ms)",
-            "Parse Time Arrow 57 (no stats) PageIndex (Column/Offset) (ms)",
+            "Parse Time Arrow 56 Metadata (ns)",
+            "Parse Time Arrow 56 PageIndex (Column/Offset) (ns)",
+            "Parse Time Arrow 57 Metadata (ns)",
+            "Parse Time Arrow 57 PageIndex (Column/Offset) (ns)",
+            "Parse Time Arrow 57 (no stats) Metadata (ns)",
+            "Parse Time Arrow 57 (no stats) PageIndex (Column/Offset) (ns)",
         ]
     }
 
     pub fn to_csv_row(&self) -> Vec<String> {
         vec![
             self.description.clone(),
-            self.arrow_56_timing.avg_metadata_parsing_duration().as_millis().to_string(),
-            self.arrow_56_timing.avg_index_parsing_duration().as_millis().to_string(),
-            self.arrow_57_timing.avg_metadata_parsing_duration().as_millis().to_string(),
-            self.arrow_57_timing.avg_index_parsing_duration().as_millis().to_string(),
-            self.arrow_57_timing_no_stats.avg_metadata_parsing_duration().as_millis().to_string(),
-            self.arrow_57_timing_no_stats.avg_index_parsing_duration().as_millis().to_string(),
+            self.arrow_56_timing.avg_metadata_parsing_duration().as_nanos().to_string(),
+            self.arrow_56_timing.avg_index_parsing_duration().as_nanos().to_string(),
+            self.arrow_57_timing.avg_metadata_parsing_duration().as_nanos().to_string(),
+            self.arrow_57_timing.avg_index_parsing_duration().as_nanos().to_string(),
+            self.arrow_57_timing_no_stats.avg_metadata_parsing_duration().as_nanos().to_string(),
+            self.arrow_57_timing_no_stats.avg_index_parsing_duration().as_nanos().to_string(),
         ]
     }
 }

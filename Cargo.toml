@@ -7,10 +7,10 @@ edition = "2024"
 arrow = "56.0.0"
 parquet_56 = {  package = "parquet",  version = "56.0.0" }
 # main from arrow-rs
-parquet_57 = { package = "parquet",  git = "https://github.com/apache/arrow-rs.git", rev = "751b0822a7f0b2647c1c662131131b35f268bfef"}
+parquet_57 = { package = "parquet",  version = "57.0.0" }
 # hacked version of parquet 57 that does not read statistics values
 # https://github.com/apache/arrow-rs/pull/8630
-parquet_57_no_stats = { package = "parquet",  git = "https://github.com/apache/arrow-rs.git", rev = "dc023f57ca4d83a317674a17cc7f36f5cf685d9a"}
+parquet_57_no_stats = { package = "parquet",  git = "https://github.com/apache/arrow-rs.git", rev = "2807919f8a9b7122b6b2e7f631244e9f960234de"}
 
 tokio = { version = "1", features = ["full"] }
 comfy-table = "7"
