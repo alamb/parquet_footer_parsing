@@ -4,7 +4,7 @@
 
 ## Summary
 
-This benchmarks demonstrates nearly an order of magnitude improvement (8x)
+This benchmarks demonstrates nearly an order of magnitude improvement (9x)
 parsing Parquet metadata with **no changes to the Parquet format**, by simply
 writing a more efficient thrift decoder.
 
@@ -14,7 +14,7 @@ expect similar improvements are possible in those languages as well.
 
 <img src="results.png" width="800"/>
 
-**Figure 1**: Benchmark results for [Apache Parquet] metadata parsing using the [new thrift decoder] in [arrow-rs], scheduled for release in 
+**Figure 1**: Benchmark results for [Apache Parquet] metadata parsing using the [new thrift decoder] in [arrow-rs], released in 
 [57.0.0]. No changes are needed to the Parquet format itself.
 
 <img src="scaling.png" width="800"/>
@@ -23,10 +23,10 @@ expect similar improvements are possible in those languages as well.
 
 [Apache Parquet]: https://parquet.apache.org/
 [arrow-rs]: https://github.com/apache/arrow-rs
-[57.0.0]: https://github.com/apache/arrow-rs/issues/7835
+[57.0.0]: https://crates.io/crates/parquet/57.0.0
 
 
-*Note 1: the "no stats" version is a modified version of the new thrift parser
+*Note 1: the ["no stats" version] is an unreleased, modified version of the new thrift parser
 that skips over all index structures entirely, including statistics on column
 chunks as well as page and offset indexes.*
 
@@ -35,6 +35,7 @@ doing point lookups in Parquet files using an external index, as explained in
 the [Using External Indexes, Metadata Stores, Catalogs and Caches to Accelerate
 Queries on Apache Parquet]). Most workloads will see more modest improvements.*
 
+["no stats" version]: https://github.com/apache/arrow-rs/pull/8630
 [Using External Indexes, Metadata Stores, Catalogs and Caches to Accelerate Queries on Apache Parquet]: https://datafusion.apache.org/blog/2025/08/15/external-parquet-indexes/
 [Apache DataFusion]: https://datafusion.apache.org/
 
@@ -128,13 +129,14 @@ datafusion-cli -c "select * from parquet_metadata('output/String_data_100_cols.p
 
 ### Decoders / Configurations`
 
-| Name                   | Description                                                                                                                                                                       |
-|------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Arrow 56`             | Using the [released version of parquet 56.2.0]                                                                                                                                    |
-| `Arrow 57`             | Using a [snapshot](https://github.com/alamb/arrow-rs/tree/alamb/thrift-remodel-snapshot) of the remodel branch (based on [this PR](https://github.com/apache/arrow-rs/pull/8476)) |
-| `Arrow 57 (no stats)`  | A modification to the above, manually updated to skip parsing all index structures (see [changes in this PR](https://github.com/alamb/arrow-rs/pull/54))                          |
+| Name                   | Description                                                                                                                                                 |
+|------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Arrow 56`             | Using the [released version of parquet 56.2.0]                                                                                                              |
+| `Arrow 57`             | Using the [released version of parquet 57.0.0]                                                                                                              |
+| `Arrow 57 (no stats)`  | A modification to the above, manually updated to skip parsing all index structures (see [changes in this PR](https://github.com/apache/arrow-rs/pull/8630)) |
 
-[released version of parquet 56.2.0]:https://crates.io/crates/parquet/56.2.0
+[released version of parquet 56.2.0]: https://crates.io/crates/parquet/56.2.0
+[released version of parquet 57.0.0]: https://crates.io/crates/parquet/57.0.0
 
 `Arrow 57 (no stats)` shows the theoretical best case once arrow-rs offers and
 API to selectively skip parsing of unnecessary fields [see this
@@ -147,16 +149,15 @@ skips both [statistics on column chunks] as well as the [PageIndex].
 
 # Results
 
-As shown in Figure 1 and 2, across the board, we see a 8x speedup (86% reduction) for
+As shown in Figure 1 and 2, across the board, we see a 9x speedup (89% reduction) for
 decoding metadata when using the new thrift decoder in arrow-rs and skipping the
 parsing of statistics and index structures entirely. Without skipping the
-parsing of statistics and index structures, we see about a 3.3x speedup overall 
+parsing of statistics and index structures, we see a 3.3x speedup with 100,000 columns. 
 
 
 For example, with the
-`String 100000 cols 20 row groups ` dataset, we go from a total time of 3.63s
-`(1.19s + 2.13s = 3.32s)` to 0.418s `(0.418s + 0s = 0.418s)`
-
+`String 100000 cols 20 row groups ` dataset, we go from a total time of 3.380s
+`(1.22s + 2.15s = 3.38s)` to 0.367s `(0.367s + 0s = 0.418s)`
 
 This is roughly in line with the 80% performance reduction results
 @adrian-thurston saw in internal benchmarks of InfluxData production workloads,
