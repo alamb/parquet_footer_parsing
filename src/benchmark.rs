@@ -213,11 +213,12 @@ impl MetadataParseBenchmark {
     }
 
 
-    /// Hacked version of Arrow 57 that skips all statistics
-    fn run_arrow_57_no_stats(&self) -> Timing {
-        use parquet_57_no_stats::file::metadata::ParquetMetaDataPushDecoder;
-        use parquet_57_no_stats::DecodeResult;
-        println!("Arrow 57 (custom thrift decoder, no stats)...");
+    /// Unmodified arrow-rs main branch (unreleased, will become 60.0.0), used as an
+    /// up to date baseline for comparison
+    fn run_arrow_60(&self) -> Timing {
+        use parquet_60::file::metadata::ParquetMetaDataPushDecoder;
+        use parquet_60::DecodeResult;
+        println!("Arrow 60 (unmodified)...");
 
         // parse the metadata and index once, returning the time taken
         // for each (metadata, index)
@@ -227,22 +228,70 @@ impl MetadataParseBenchmark {
             push_range!(&mut decoder, &self.metadata_range, &self.metadata_bytes);
             // this will now parse the metadata
             let start = std::time::Instant::now();
-            let res = decoder.try_decode().unwrap();
+            let DecodeResult::NeedsData(_range) = decoder.try_decode().unwrap() else {
+                panic!("Needs expected index bytes");
+            };
             let metadata_parsing_duration = start.elapsed();
-
-            match res {
-                DecodeResult::NeedsData(_range) => { /* expected, continue */ }
-                DecodeResult::Data(_metadata) => {
-                    // no index present (b/c we disabled parsing those fields)
-                    return (metadata_parsing_duration, Duration::from_secs(0));
-                }
-                DecodeResult::Finished => {
-                    panic!("Expected data or needs data");
-                }
-            }
             let start = std::time::Instant::now();
             push_range!(&mut decoder, &self.index_range, &self.index_bytes);
             // this is the index parsing
+            let DecodeResult::Data(_metadata) = decoder.try_decode().unwrap() else {
+                panic!("Expected to be done with parsing");
+            };
+            let index_parsing_duration = start.elapsed();
+            (metadata_parsing_duration, index_parsing_duration)
+        } ;
+
+        // warm up with 10 runs
+        for _ in 0..10 {
+            run_once();
+        }
+
+        // now run the actual benchmark
+        let mut metadata_parsing_duration = Duration::from_secs(0);
+        let mut index_parsing_duration = Duration::from_secs(0);
+        for _ in 0..self.num_runs {
+            let (md_duration, idx_duration) = run_once();
+            metadata_parsing_duration += md_duration;
+            index_parsing_duration += idx_duration;
+        }
+        Timing {
+            num_runs: self.num_runs,
+            metadata_parsing_duration,
+            index_parsing_duration,
+        }
+    }
+
+    /// Version of parquet with support for `ColumnChunkMask`
+    /// (https://github.com/apache/arrow-rs/pull/11157), used to select only a single
+    /// column when decoding the PageIndex (ColumnIndex / OffsetIndex), rather than
+    /// decoding the PageIndex for all columns.
+    fn run_page_index_selection(&self) -> Timing {
+        use parquet_page_index_selection::file::metadata::{
+            ColumnChunkMask, ParquetMetaDataPushDecoder,
+        };
+        use parquet_page_index_selection::DecodeResult;
+        println!("Page Index Selection (single column)...");
+
+        // parse the metadata and index once, returning the time taken
+        // for each (metadata, index)
+        let run_once = || {
+            // only decode the ColumnIndex / OffsetIndex for column 0
+            let mut decoder = ParquetMetaDataPushDecoder::try_new(self.file_len)
+                .unwrap()
+                .with_column_index_mask(ColumnChunkMask::columns([0]))
+                .with_offset_index_mask(ColumnChunkMask::columns([0]));
+            push_range!(&mut decoder, &self.footer_range, &self.footer_bytes);
+            push_range!(&mut decoder, &self.metadata_range, &self.metadata_bytes);
+            // this will now parse the metadata
+            let start = std::time::Instant::now();
+            let DecodeResult::NeedsData(_range) = decoder.try_decode().unwrap() else {
+                panic!("Needs expected index bytes");
+            };
+            let metadata_parsing_duration = start.elapsed();
+            let start = std::time::Instant::now();
+            push_range!(&mut decoder, &self.index_range, &self.index_bytes);
+            // this is the index parsing (only for the selected column)
             let DecodeResult::Data(_metadata) = decoder.try_decode().unwrap() else {
                 panic!("Expected to be done with parsing");
             };
@@ -279,7 +328,8 @@ impl MetadataParseBenchmark {
             description: self.description.clone(),
             arrow_56_timing: self.run_arrow_56(),
             arrow_57_timing: self.run_arrow_57(),
-            arrow_57_timing_no_stats: self.run_arrow_57_no_stats(),
+            arrow_60_timing: self.run_arrow_60(),
+            page_index_selection_timing: self.run_page_index_selection(),
         }
     }
 }
@@ -327,8 +377,11 @@ pub struct MetadataParseResult {
     arrow_56_timing: Timing,
     /// Timing for arrow-rs 57 (using custom thrift parser)
     arrow_57_timing: Timing,
-    /// Timing for arrow-rs 57 (using custom thrift parser), skip all statistics
-    arrow_57_timing_no_stats: Timing,
+    /// Timing for unmodified arrow-rs main (unreleased 60.0.0)
+    arrow_60_timing: Timing,
+    /// Timing for arrow-rs with `ColumnChunkMask` support, selecting a single column
+    /// when decoding the PageIndex (see https://github.com/apache/arrow-rs/pull/11157)
+    page_index_selection_timing: Timing,
 
 }
 
@@ -340,8 +393,10 @@ impl MetadataParseResult {
             "Parse Time Arrow 56\n\nPageIndex (Column/Offset)",
             "Parse Time Arrow 57\n\nMetadata",
             "Parse Time Arrow 57\n\nPageIndex (Column/Offset)",
-            "Parse Time Arrow 57 (no stats)\n\nMetadata",
-            "Parse Time Arrow 57 (no stats)\n\nPageIndex (Column/Offset)",
+            "Parse Time Arrow 60\n\nMetadata",
+            "Parse Time Arrow 60\n\nPageIndex (Column/Offset)",
+            "Parse Time Page Index Selection\n\nMetadata",
+            "Parse Time Page Index Selection\n\nPageIndex (single column)",
         ]);
     }
 
@@ -352,8 +407,10 @@ impl MetadataParseResult {
             "Parse Time Arrow 56 PageIndex (Column/Offset) (ns)",
             "Parse Time Arrow 57 Metadata (ns)",
             "Parse Time Arrow 57 PageIndex (Column/Offset) (ns)",
-            "Parse Time Arrow 57 (no stats) Metadata (ns)",
-            "Parse Time Arrow 57 (no stats) PageIndex (Column/Offset) (ns)",
+            "Parse Time Arrow 60 Metadata (ns)",
+            "Parse Time Arrow 60 PageIndex (Column/Offset) (ns)",
+            "Parse Time Page Index Selection Metadata (ns)",
+            "Parse Time Page Index Selection PageIndex (single column) (ns)",
         ]
     }
 
@@ -364,8 +421,10 @@ impl MetadataParseResult {
             self.arrow_56_timing.avg_index_parsing_duration().as_nanos().to_string(),
             self.arrow_57_timing.avg_metadata_parsing_duration().as_nanos().to_string(),
             self.arrow_57_timing.avg_index_parsing_duration().as_nanos().to_string(),
-            self.arrow_57_timing_no_stats.avg_metadata_parsing_duration().as_nanos().to_string(),
-            self.arrow_57_timing_no_stats.avg_index_parsing_duration().as_nanos().to_string(),
+            self.arrow_60_timing.avg_metadata_parsing_duration().as_nanos().to_string(),
+            self.arrow_60_timing.avg_index_parsing_duration().as_nanos().to_string(),
+            self.page_index_selection_timing.avg_metadata_parsing_duration().as_nanos().to_string(),
+            self.page_index_selection_timing.avg_index_parsing_duration().as_nanos().to_string(),
         ]
     }
 }
@@ -378,8 +437,10 @@ impl MetadataParseResult {
             format!("{:?}", self.arrow_56_timing.avg_index_parsing_duration()),
             format!("{:?}", self.arrow_57_timing.avg_metadata_parsing_duration()),
             format!("{:?}", self.arrow_57_timing.avg_index_parsing_duration()),
-            format!("{:?}", self.arrow_57_timing_no_stats.avg_metadata_parsing_duration()),
-            format!("{:?}", self.arrow_57_timing_no_stats.avg_index_parsing_duration()),
+            format!("{:?}", self.arrow_60_timing.avg_metadata_parsing_duration()),
+            format!("{:?}", self.arrow_60_timing.avg_index_parsing_duration()),
+            format!("{:?}", self.page_index_selection_timing.avg_metadata_parsing_duration()),
+            format!("{:?}", self.page_index_selection_timing.avg_index_parsing_duration()),
         ]);
     }
 }
@@ -392,8 +453,10 @@ impl Display for MetadataParseResult {
         writeln!(f, "{}", self.arrow_56_timing)?;
         writeln!(f, "  Arrow 57 Timing:")?;
         writeln!(f, "{}", self.arrow_57_timing)?;
-        writeln!(f, "  Arrow 57 Timing (no stats):")?;
-        writeln!(f, "{}", self.arrow_57_timing_no_stats)?;
+        writeln!(f, "  Arrow 60 Timing:")?;
+        writeln!(f, "{}", self.arrow_60_timing)?;
+        writeln!(f, "  Page Index Selection Timing (single column):")?;
+        writeln!(f, "{}", self.page_index_selection_timing)?;
         Ok(())
     }
 }

@@ -26,16 +26,18 @@ expect similar improvements are possible in those languages as well.
 [57.0.0]: https://crates.io/crates/parquet/57.0.0
 
 
-*Note 1: the ["no stats" version] is an unreleased, modified version of the new thrift parser
-that skips over all index structures entirely, including statistics on column
-chunks as well as page and offset indexes.*
+*Note 1: the ["Page Index Selection (single column)" version] is an unreleased,
+modified version of arrow-rs main (based on [PR #11157]) that uses
+`ColumnChunkMask` to decode the PageIndex (page and offset indexes) for only a
+single column, rather than for all columns.*
 
 *Note 2: These results show the theoretical best case improvements (e.g. when
 doing point lookups in Parquet files using an external index, as explained in
 the [Using External Indexes, Metadata Stores, Catalogs and Caches to Accelerate
 Queries on Apache Parquet]). Most workloads will see more modest improvements.*
 
-["no stats" version]: https://github.com/apache/arrow-rs/pull/8630
+["Page Index Selection (single column)" version]: https://github.com/apache/arrow-rs/pull/11157
+[PR #11157]: https://github.com/apache/arrow-rs/pull/11157
 [Using External Indexes, Metadata Stores, Catalogs and Caches to Accelerate Queries on Apache Parquet]: https://datafusion.apache.org/blog/2025/08/15/external-parquet-indexes/
 [Apache DataFusion]: https://datafusion.apache.org/
 
@@ -129,23 +131,25 @@ datafusion-cli -c "select * from parquet_metadata('output/String_data_100_cols.p
 
 ### Decoders / Configurations`
 
-| Name                   | Description                                                                                                                                                 |
-|------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Arrow 56`             | Using the [released version of parquet 56.2.0]                                                                                                              |
-| `Arrow 57`             | Using the [released version of parquet 57.0.0]                                                                                                              |
-| `Arrow 57 (no stats)`  | A modification to the above, manually updated to skip parsing all index structures (see [changes in this PR](https://github.com/apache/arrow-rs/pull/8630)) |
+| Name                            | Description                                                                                                                                                 |
+|---------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Arrow 56`                      | Using the [released version of parquet 56.2.0]                                                                                                              |
+| `Arrow 57`                      | Using the [released version of parquet 57.0.0]                                                                                                              |
+| `Arrow 60`                      | Using the unmodified [arrow-rs main branch] (unreleased, will become `60.0.0`), as an up to date baseline                                                   |
+| `Page Index Selection (single column)` | A modification of `Arrow 60` that uses [`ColumnChunkMask`] to decode the PageIndex (ColumnIndex / OffsetIndex) for only a single column, rather than for all columns (see [PR #11157]) |
 
 [released version of parquet 56.2.0]: https://crates.io/crates/parquet/56.2.0
 [released version of parquet 57.0.0]: https://crates.io/crates/parquet/57.0.0
+[arrow-rs main branch]: https://github.com/apache/arrow-rs
+[`ColumnChunkMask`]: https://github.com/apache/arrow-rs/pull/11157
+[PR #11157]: https://github.com/apache/arrow-rs/pull/11157
 
-`Arrow 57 (no stats)` shows the theoretical best case once arrow-rs offers and
-API to selectively skip parsing of unnecessary fields [see this
-ticket](https://github.com/apache/arrow-rs/issues/5855), such as statistics for
-columns which do not have predicates on them. The version in this benchmark
-skips both [statistics on column chunks] as well as the [PageIndex].
-
-[statistics on column chunks]: https://github.com/apache/parquet-format/blob/9fd57b59e0ce1a82a69237dcf8977d3e72a2965d/src/main/thrift/parquet.thrift#L912-L939
-[PageIndex]: https://github.com/apache/parquet-format/blob/master/PageIndex.md
+`Page Index Selection (single column)` shows the performance improvement possible
+once arrow-rs offers an API to selectively decode the PageIndex only for the
+columns that are actually needed (e.g. columns referenced by a projection or
+filter), rather than decoding the PageIndex for every column in the file. See
+[PR #11157] for the underlying `ColumnChunkMask` implementation and [this
+ticket](https://github.com/apache/arrow-rs/issues/5855) for more background.
 
 # Results
 
@@ -172,6 +176,12 @@ Results (see also [Spreadsheet] for source and diagrams)
 [Spreadsheet]: https://docs.google.com/spreadsheets/d/1Ypsox5EywNmv9ORwrlmJlWcPVvWlOW_QCnIt_U68vbo/edit?gid=1818026620#gid=1818026620
 
 ## Results on Mac OS
+
+> **Note:** the results below are from before the `Arrow 60` and `Page Index
+> Selection (single column)` configurations were added, and thus still show
+> the older `Arrow 57 (no stats)` column layout. Re-run `cargo run --release`
+> to regenerate results with the current configurations.
+
 System configuration: Apple M3 Max, 16-inch, Nov 2023 64GB RAM
 
 ```text
@@ -212,6 +222,11 @@ String 100000 cols 20 row groups,1227258745,2152299291,463356495,552433658,36739
 ```
 
 ## Results on Linux
+
+> **Note:** the results below are from before the `Arrow 60` and `Page Index
+> Selection (single column)` configurations were added, and thus still show
+> the older `Arrow 57 (no stats)` column layout. Re-run `cargo run --release`
+> to regenerate results with the current configurations.
 
 System configuration:
 AWS EC2: `m6id.8xlarge`

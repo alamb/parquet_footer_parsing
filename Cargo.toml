@@ -8,9 +8,14 @@ arrow = "56.0.0"
 parquet_56 = {  package = "parquet",  version = "56.0.0" }
 # main from arrow-rs
 parquet_57 = { package = "parquet",  version = "57.0.0" }
-# hacked version of parquet 57 that does not read statistics values
-# https://github.com/apache/arrow-rs/pull/8630
-parquet_57_no_stats = { package = "parquet",  git = "https://github.com/apache/arrow-rs.git", rev = "2807919f8a9b7122b6b2e7f631244e9f960234de"}
+# unmodified arrow-rs main branch (unreleased 60.0.0), used as an up to date baseline
+# https://github.com/apache/arrow-rs
+parquet_60 = { package = "parquet", git = "https://github.com/apache/arrow-rs.git", rev = "8208506f8f9ec193c08023ac2477d211d1d86d20" }
+# version of parquet with support for selecting a single column when decoding the PageIndex
+# (ColumnChunkMask), used to measure the cost of decoding the PageIndex for only the columns
+# that are actually needed
+# https://github.com/apache/arrow-rs/pull/11157
+parquet_page_index_selection = { package = "parquet", git = "https://github.com/apache/arrow-rs.git", rev = "c47bb75b7e9c95fdf04c418bfb6bd57b7d1dfa17" }
 
 tokio = { version = "1", features = ["full"] }
 comfy-table = "7"
